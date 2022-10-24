@@ -61,12 +61,14 @@ class UpstreamExpert(torch.nn.Module):
             wav_lengths.unsqueeze(1),
         )
 
-        hs = self.model.extract_features(
+        ret = self.model.extract_features(
             pad_sequence(wavs, batch_first=True),
             padding_mask=wav_padding_mask,
             ret_hs=True,
-        )[0]
+        )
+        hs = ret[0]
 
         return {
             "hidden_states": hs,
+             "time_info":ret[2]
         }
