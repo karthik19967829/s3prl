@@ -439,7 +439,7 @@ class Runner():
         dataloader = self.downstream.model.get_dataloader(split)
         evaluate_ratio = float(self.config["runner"].get("evaluate_ratio", 1))
         evaluate_steps = round(len(dataloader) * evaluate_ratio)
-
+        time_info_logs = []
         batch_ids = []
         records = defaultdict(list)
         for batch_id, (wavs, *others) in enumerate(tqdm(dataloader, dynamic_ncols=True, desc=split, total=evaluate_steps)):
@@ -449,6 +449,7 @@ class Runner():
             wavs = [torch.FloatTensor(wav).to(self.args.device) for wav in wavs]
             with torch.no_grad():
                 features = self.upstream.model(wavs)
+                time_info = features["time_info"]
                 features = self.featurizer.model(wavs, features)
                 self.downstream.model(
                     split,
@@ -457,7 +458,9 @@ class Runner():
                     batch_id = batch_id,
                 )
                 batch_ids.append(batch_id)
-
+                time_info_logs.append([time_info["transformer_encoder"]/len(wavs),time_info["cnn_feature_extraction_time"]/len(wavs)])
+        
+        print("average transformer block time:",sum(x[0] for x in time_info_logs)/len(batch_ids),"average cnn block time:",sum(x[1] for x in time_info_logs)/len(batch_ids))
         save_names = self.downstream.model.log_records(
             split,
             records = records,
