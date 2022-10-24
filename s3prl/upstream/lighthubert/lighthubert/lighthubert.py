@@ -700,9 +700,12 @@ class LightHuBERT(nn.Module):
         1. hidden representations
         2. mask indices corresponding to masked language modeling
         """
+        start_time = time.time()
         features = self.forward_features(source)
         if target_list is not None:
             features, target_list = self.forward_targets(features, target_list)
+        cnn_feature_extraction_time = time.time()-start_time
+
 
         features_pen = features.float().pow(2).mean()
 
@@ -732,12 +735,14 @@ class LightHuBERT(nn.Module):
         # x: (B, T, D), float
         # padding_mask: (B, T), bool
         # mask_indices: (B, T), bool
+        start_time = time.time()
         x, layer_results = self.encoder(
             x,
             padding_mask=padding_mask,
             layer=None,
         )
-
+        transformer_encoder_layer_time = time.time()-start_time
+        
         layer_head_list = [
             None,
         ] * self.encoder_layers
@@ -782,6 +787,8 @@ class LightHuBERT(nn.Module):
                 "padding_mask": padding_mask,
                 "hidden_states": hidden_states,
                 "layer_heads": layer_head_list,
+                "transformer_encoder_time": transformer_encoder_layer_time,
+                "cnn_feature_extraction_time": cnn_feature_extraction_time
             }
 
         result = {
@@ -792,6 +799,8 @@ class LightHuBERT(nn.Module):
             "attn_matrices": attn_matrices,
             "layer_heads": layer_head_list,
             "mask_indices": mask_indices,
+            "transformer_encoder_time": transformer_encoder_layer_time,
+            "cnn_feature_extraction_time": cnn_feature_extraction_time
         }
         return result
 
@@ -827,7 +836,8 @@ class LightHuBERT(nn.Module):
             feature = res["hidden_states"][0]
         else:
             feature = res["x"]
-        return feature, res["padding_mask"]
+        time_info = {"transformer_encoder":res["transformer_encoder_time"], "cnn_feature_extraction_time":res["cnn_feature_extraction_time"]}
+        return feature, res["padding_mask"],time_info     
 
     def freeze_feature_extractor(self):
         for param in self.feature_extractor.parameters():
